@@ -1,54 +1,56 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QR 방문자 체크</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        body { font-family: -apple-system, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f5f5f7; }
-        .card { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; }
-        .count { font-size: 4rem; font-weight: 800; color: #007AFF; margin: 20px 0; }
-        .status { font-size: 0.9rem; color: #888; }
-    </style>
-</head>
-<body>
-    <div class="card">
-        <h2>누적 방문자 수</h2>
-        <div id="count" class="count">--</div>
-        <p id="status" class="status">사용자 식별 중...</p>
+<style>
+    .nickname-section { margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px; }
+    input { padding: 10px; border-radius: 5px; border: 1px solid #ddd; width: 60%; }
+    button { padding: 10px 15px; background: #007AFF; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    .visitor-list { text-align: left; margin-top: 20px; max-height: 200px; overflow-y: auto; font-size: 0.9rem; }
+    .visitor-item { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px dashed #eee; }
+</style>
+
+<div class="card">
+    <h2>누적 방문자 수: <span id="count">--</span>명</h2>
+    <h3 style="color: #007AFF;">당신은 <span id="my-order">--</span>번째 방문자입니다!</h3>
+    
+    <div class="nickname-section">
+        <input type="text" id="nickname-input" placeholder="닉네임 입력">
+        <button onclick="updateNickname()">수정</button>
     </div>
 
-    <script type="module">
-        import FingerprintJS from 'https://openfpcdn.io/fingerprintjs/v4/esm.min.js';
+    <div id="visitor-list" class="visitor-list">
+        </div>
+</div>
 
-        async function trackVisitor() {
-            const statusEl = document.getElementById('status');
-            const countEl = document.getElementById('count');
+<script type="module">
+    import FingerprintJS from 'https://openfpcdn.io/fingerprintjs/v4/esm.min.js';
 
-            // 1. Fingerprint 생성
-            const fp = await FingerprintJS.load();
-            const result = await fp.get();
-            const fingerprint = result.visitorId;
+    let visitorFingerprint = '';
 
-            // 2. Vercel API 호출 (중복 체크 및 카운트)
-            // 배포 전에는 일단 호출 주소를 비워둡니다.
-            try {
-                const response = await fetch('/api/visit', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ fingerprint })
-                });
-                const data = await response.json();
-                
-                countEl.innerText = data.totalCount;
-                statusEl.innerText = "방문이 인증되었습니다.";
-            } catch (e) {
-                statusEl.innerText = "연결 오류가 발생했습니다.";
-            }
-        }
+    window.updateNickname = async () => {
+        const nickname = document.getElementById('nickname-input').value;
+        await trackVisitor(nickname);
+    };
 
-        trackVisitor();
-    </script>
-</body>
-</html>
+    async function trackVisitor(name = '익명') {
+        const fp = await FingerprintJS.load();
+        const result = await fp.get();
+        visitorFingerprint = result.visitorId;
+
+        const response = await fetch('/api/visit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fingerprint: visitorFingerprint, nickname: name })
+        });
+        const data = await response.json();
+
+        // 화면 업데이트
+        document.getElementById('count').innerText = data.totalCount;
+        document.getElementById('my-order').innerText = data.myOrder;
+        
+        const listEl = document.getElementById('visitor-list');
+        listEl.innerHTML = '<strong>방문 순서:</strong>';
+        data.allVisitors.forEach((v, i) => {
+            listEl.innerHTML += `<div class="visitor-item"><span>${i+1}. ${v.nickname}</span></div>`;
+        });
+    }
+
+    trackVisitor(); // 초기 로드
+</script>
