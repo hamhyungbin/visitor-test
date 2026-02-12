@@ -1,38 +1,38 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Supabase 정보 (본인의 것으로 교체 필요)
-const supabase = createClient(
-  'https://rkkqdqqvuvdxegiyctcg.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJra3FkcXF2dXZkeGVnaXljdGNnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDg0MjQwOCwiZXhwIjoyMDg2NDE4NDA4fQ.WorpyjuzpuVPFETbw0eEhxhfoANXPzsBAmr_JcLF2yc'
-);
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
 
-  const { fingerprint } = req.body;
+  const { fingerprint, nickname } = req.body;
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-  const userAgent = req.headers['user-agent'];
-
-  // 핑거프린트 + IP 조합으로 더 강력한 고유 ID 생성
   const uniqueVisitorId = `${fingerprint}_${ip}`;
 
   try {
-    // 1. 방문자 등록 시도 (이미 있으면 에러가 나거나 무시됨)
+    // 1. 방문자 등록 또는 닉네임 업데이트 (upsert 사용)
     await supabase
       .from('visitors')
-      .insert([{ visitor_id: uniqueVisitorId }])
-      .select(); 
-      // 참고: 테이블 설정에서 visitor_id가 unique이므로 중복이면 삽입 안 됨
+      .upsert(
+        { visitor_id: uniqueVisitorId, nickname: nickname || '익명' },
+        { onConflict: 'visitor_id' }
+      );
 
-    // 2. 전체 고유 방문자 수 조회
-    const { count, error } = await supabase
+    // 2. 전체 방문자 목록을 가져와서 내 순서 찾기
+    const { data: allVisitors } = await supabase
       .from('visitors')
-      .select('*', { count: 'exact', head: true });
+      .select('visitor_id, nickname')
+      .order('created_at', { ascending: true });
 
-    return res.status(200).json({ totalCount: count });
+    const myIndex = allVisitors.findIndex(v => v.visitor_id === uniqueVisitorId) + 1;
+    const totalCount = allVisitors.length;
+
+    return res.status(200).json({ 
+      totalCount, 
+      myOrder: myIndex,
+      allVisitors: allVisitors // 목록 표시용
+    });
   } catch (err) {
-    return res.status(500).json({ error: err.message, detail: "Supabase 연결 확인 필요" });
+    return res.status(500).json({ error: err.message });
   }
 }
-
-
