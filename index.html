@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR 방문자 체크</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: -apple-system, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f5f5f7; }
+        .card { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; }
+        .count { font-size: 4rem; font-weight: 800; color: #007AFF; margin: 20px 0; }
+        .status { font-size: 0.9rem; color: #888; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>누적 방문자 수</h2>
+        <div id="count" class="count">--</div>
+        <p id="status" class="status">사용자 식별 중...</p>
+    </div>
+
+    <script type="module">
+        import FingerprintJS from 'https://openfpcdn.io/fingerprintjs/v4/esm.min.js';
+
+        async function trackVisitor() {
+            const statusEl = document.getElementById('status');
+            const countEl = document.getElementById('count');
+
+            // 1. Fingerprint 생성
+            const fp = await FingerprintJS.load();
+            const result = await fp.get();
+            const fingerprint = result.visitorId;
+
+            // 2. Vercel API 호출 (중복 체크 및 카운트)
+            // 배포 전에는 일단 호출 주소를 비워둡니다.
+            try {
+                const response = await fetch('/api/visit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ fingerprint })
+                });
+                const data = await response.json();
+                
+                countEl.innerText = data.totalCount;
+                statusEl.innerText = "방문이 인증되었습니다.";
+            } catch (e) {
+                statusEl.innerText = "연결 오류가 발생했습니다.";
+            }
+        }
+
+        trackVisitor();
+    </script>
+</body>
+</html>
