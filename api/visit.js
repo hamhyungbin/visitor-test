@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 // Supabase 정보 (본인의 것으로 교체 필요)
 const supabase = createClient(
   'https://rkkqdqqvuvdxegiyctcg.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJra3FkcXF2dXZkeGVnaXljdGNnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4NDI0MDgsImV4cCI6MjA4NjQxODQwOH0.ZyAKvj3_5dTio3lq_BZO1QLA2rtJsLxokwSxZtQBnNs'
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJra3FkcXF2dXZkeGVnaXljdGNnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDg0MjQwOCwiZXhwIjoyMDg2NDE4NDA4fQ.WorpyjuzpuVPFETbw0eEhxhfoANXPzsBAmr_JcLF2yc'
 );
 
 export default async function handler(req, res) {
@@ -35,3 +35,4 @@ export default async function handler(req, res) {
   }
 
 }
+
