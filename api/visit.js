@@ -1,37 +1,35 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+// Supabase 정보 (본인의 것으로 교체 필요)
+const supabase = createClient(
+  '여기에_SUPABASE_URL_입력',
+  '여기에_SUPABASE_ANON_KEY_입력'
+);
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
 
-  const { fingerprint, nickname } = req.body;
+  const { fingerprint } = req.body;
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  const userAgent = req.headers['user-agent'];
+
+  // 핑거프린트 + IP 조합으로 더 강력한 고유 ID 생성
   const uniqueVisitorId = `${fingerprint}_${ip}`;
 
   try {
-    // 1. 방문자 등록 또는 닉네임 업데이트 (upsert 사용)
+    // 1. 방문자 등록 시도 (이미 있으면 에러가 나거나 무시됨)
     await supabase
       .from('visitors')
-      .upsert(
-        { visitor_id: uniqueVisitorId, nickname: nickname || '익명' },
-        { onConflict: 'visitor_id' }
-      );
+      .insert([{ visitor_id: uniqueVisitorId }])
+      .select(); 
+      // 참고: 테이블 설정에서 visitor_id가 unique이므로 중복이면 삽입 안 됨
 
-    // 2. 전체 방문자 목록을 가져와서 내 순서 찾기
-    const { data: allVisitors } = await supabase
+    // 2. 전체 고유 방문자 수 조회
+    const { count, error } = await supabase
       .from('visitors')
-      .select('visitor_id, nickname')
-      .order('created_at', { ascending: true });
+      .select('*', { count: 'exact', head: true });
 
-    const myIndex = allVisitors.findIndex(v => v.visitor_id === uniqueVisitorId) + 1;
-    const totalCount = allVisitors.length;
-
-    return res.status(200).json({ 
-      totalCount, 
-      myOrder: myIndex,
-      allVisitors: allVisitors // 목록 표시용
-    });
+    return res.status(200).json({ totalCount: count });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
